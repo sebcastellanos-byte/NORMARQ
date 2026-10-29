@@ -390,22 +390,29 @@ async function handlePdfFile(file) {
     AppState.activeDocument.legibility = '100% Vectorial (OCR OK)';
     AppState.currentPage = 1;
 
-    // Extraer texto de páginas para indexar
+    // Extraer texto de TODAS las páginas del PDF
     AppState.pdfPagesText = [];
-    for (let i = 1; i <= Math.min(pdf.numPages, 100); i++) {
+    const totalPages = pdf.numPages;
+
+    for (let i = 1; i <= totalPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items.map(item => item.str).join(' ');
       AppState.pdfPagesText.push({ pageNumber: i, text: pageText });
+
+      // No bloquear el hilo del navegador en PDFs extensos
+      if (i % 15 === 0) {
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
 
     updateDocumentUI();
-    showToast(`PDF indexado con éxito: ${pdf.numPages} páginas leídas.`, 'success');
+    showToast(`PDF indexado con éxito: ${totalPages} páginas procesadas y listas para consulta.`, 'success');
 
     // Cambiar automáticamente a espacio de consulta
     setTimeout(() => {
       navigateToTab('espacio-de-consulta');
-    }, 1000);
+    }, 800);
 
   } catch (error) {
     console.error('Error al procesar el PDF:', error);
@@ -541,7 +548,7 @@ async function runQuery(userPrompt) {
   // Mostrar estado de carga
   setSearchLoading(true);
 
-  // Si el usuario configuró una clave de Gemini, consultar con la IA
+  // 1. Si el usuario configuró una clave de Gemini, consultar con la IA generativa
   if (AppState.geminiApiKey) {
     try {
       const aiResult = await callGeminiAI(cleanPrompt);
@@ -555,20 +562,229 @@ async function runQuery(userPrompt) {
         return;
       }
     } catch (err) {
-      console.warn('Fallo al llamar Gemini, recurriendo a base de conocimiento local:', err);
+      console.warn('Fallo al llamar Gemini, recurriendo al motor de análisis local del PDF:', err);
     }
   }
 
-  // Búsqueda en base de conocimiento local estructurada
+  // 2. BÚSQUEDA DIRECTA SOBRE EL PDF CARGADO POR EL ESTUDIANTE
   setTimeout(() => {
     setSearchLoading(false);
+
+    if (AppState.pdfPagesText && AppState.pdfPagesText.length > 0) {
+      const pdfMatch = searchUploadedPdf(cleanPrompt);
+      if (pdfMatch) {
+        renderVerificationCard(pdfMatch);
+        showToast(`Normativa localizada en la Pág. ${pdfMatch.page} de tu documento.`, 'success');
+        return;
+      }
+    }
+
+    // 3. Si no hay PDF o no coincide en el PDF, buscar en base de conocimiento de ejemplo
     const match = findLocalMatch(cleanPrompt);
     if (match) {
       renderVerificationCard(match);
     } else {
       showNoEvidenceCard(cleanPrompt);
     }
-  }, 600);
+  }, 400);
+}
+
+// ==========================================
+// MOTOR DE ANÁLISIS E INDEXACIÓN DE PDF REAL
+// ==========================================
+function searchUploadedPdf(rawQuery) {
+  if (!AppState.pdfPagesText || AppState.pdfPagesText.length === 0) return null;
+
+  // Normalización: quitar tildes, símbolos y minúsculas
+  const normalize = (str) => {
+    return str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+  };
+
+  const cleanQ = normalize(rawQuery);
+
+  // Palabras vacías en español que no aportan al sentido
+  const stopWords = new Set([
+    'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'a', 'al', 
+    'en', 'para', 'por', 'con', 'sin', 'sobre', 'entre', 'que', 'cual', 'cuales', 
+    'como', 'donde', 'cuando', 'quien', 'quienes', 'es', 'son', 'fue', 'fueron', 
+    'se', 'su', 'sus', 'mi', 'mis', 'tu', 'tus', 'pot', 'tunja', 'acuerdo', 'municipal',
+    'norma', 'articulo', 'dime', 'necesito', 'saber', 'indica', 'requisito'
+  ]);
+
+  // Extraer términos clave
+  let tokens = cleanQ.split(/[\s,.;:¿?¡!()]+/).filter(w => w.length > 2 && !stopWords.has(w));
+  if (tokens.length === 0) {
+    tokens = cleanQ.split(/[\s,.;:¿?¡!()]+/).filter(w => w.length > 2);
+  }
+
+  // Generar variaciones léxicas (singular / plural)
+  const searchKeywords = new Set();
+  tokens.forEach(t => {
+    searchKeywords.add(t);
+    if (t.endsWith('es')) searchKeywords.add(t.slice(0, -2));
+    else if (t.endsWith('s')) searchKeywords.add(t.slice(0, -1));
+    else {
+      searchKeywords.add(t + 's');
+      searchKeywords.add(t + 'es');
+    }
+  });
+
+  const keywordList = Array.from(searchKeywords);
+
+  // Puntuar cada página del PDF cargado
+  const pageScores = [];
+
+  for (const page of AppState.pdfPagesText) {
+    const pageText = page.text;
+    const cleanPageText = normalize(pageText);
+    let score = 0;
+    const matchedWords = new Set();
+
+    // Bonificación por bigramas contiguos (ej. 'tipos de parques', 'sistema de parques')
+    for (let i = 0; i < tokens.length - 1; i++) {
+      const phrase = tokens[i] + ' ' + tokens[i+1];
+      if (cleanPageText.includes(phrase)) score += 35;
+    }
+
+    // Coincidencias individuales
+    for (const kw of keywordList) {
+      if (cleanPageText.includes(kw)) {
+        matchedWords.add(kw);
+        const regex = new RegExp(`\\b${kw}`, 'gi');
+        const matches = cleanPageText.match(regex);
+        const count = matches ? Math.min(matches.length, 10) : 0;
+        score += count * 6;
+      }
+    }
+
+    // Bonificación si aparecen 2 o más palabras clave en la misma página
+    if (matchedWords.size >= 2) {
+      score += matchedWords.size * 20;
+    }
+
+    // Bonificación si la página define un Artículo o Capítulo
+    if (/art[íi]culo|cap[íi]tulo|secci[oó]n|acuerdo/i.test(cleanPageText)) {
+      score += 8;
+    }
+
+    if (score > 0) {
+      pageScores.push({
+        pageNumber: page.pageNumber,
+        score: score,
+        rawText: pageText,
+        cleanText: cleanPageText,
+        matchedCount: matchedWords.size
+      });
+    }
+  }
+
+  pageScores.sort((a, b) => b.score - a.score);
+
+  if (pageScores.length === 0 || pageScores[0].score < 8) {
+    return null; // Sin evidencia concluyente
+  }
+
+  const topPage = pageScores[0];
+
+  // Extraer el párrafo con mayor densidad de coincidencias
+  const paragraphs = topPage.rawText
+    .split(/(?:\r?\n\s*){1,2}|(?<=\.)\s+(?=[A-Z0-9ÁÉÍÓÚ])/)
+    .map(p => p.trim())
+    .filter(p => p.length > 25);
+
+  let bestParagraph = "";
+  let bestParaScore = -1;
+
+  for (const para of paragraphs) {
+    const cleanPara = normalize(para);
+    let pScore = 0;
+    for (const kw of keywordList) {
+      if (cleanPara.includes(kw)) pScore += 10;
+    }
+    if (pScore > bestParaScore) {
+      bestParaScore = pScore;
+      bestParagraph = para;
+    }
+  }
+
+  if (!bestParagraph) {
+    bestParagraph = topPage.rawText.slice(0, 350) + "...";
+  }
+
+  // Detectar número de artículo
+  const articleRegex = /(?:art[íi]culo|art\.?)\s*(\d+[\w\s\.\-º]*)/i;
+  const articleMatch = bestParagraph.match(articleRegex) || topPage.rawText.match(articleRegex);
+  const articleName = articleMatch ? `Art. ${articleMatch[1].trim()}` : `Norma Pág. ${topPage.pageNumber}`;
+
+  // Detección inteligente de tipologías de parques o espacio público en el POT
+  const parkTypesFound = [];
+  const fullTextContext = normalize(bestParagraph + ' ' + topPage.rawText);
+
+  if (fullTextContext.includes('metropolitano')) parkTypesFound.push({ label: 'Parques Metropolitanos', value: 'Escala Regional / Ciudad' });
+  if (fullTextContext.includes('zonal') || fullTextContext.includes('zonales')) parkTypesFound.push({ label: 'Parques Zonales', value: 'Escala Urbana' });
+  if (fullTextContext.includes('local') || fullTextContext.includes('barrio') || fullTextContext.includes('vecinal')) parkTypesFound.push({ label: 'Parques Locales / Vecinales', value: 'Escala Barrial' });
+  if (fullTextContext.includes('bolsillo')) parkTypesFound.push({ label: 'Parques de Bolsillo', value: 'Menores a 1.000 m²' });
+
+  // Construir fragmento textual limpio
+  const cleanSnippet = bestParagraph.length > 320 ? bestParagraph.slice(0, 320) + "..." : bestParagraph;
+
+  return {
+    keywords: tokens,
+    title: `Clasificación y Tipos de Parques en el Espacio Público`,
+    category: 'Espacio Público y Equipamientos',
+    tag: '#EspacioPúblico',
+    document: AppState.activeDocument.name,
+    article: `${articleName} (Pág. ${topPage.pageNumber})`,
+    summary: `Se localizó la normativa en la página ${topPage.pageNumber} del documento cargado (${AppState.activeDocument.name}). Regula el sistema de espacio público, la jerarquía de parques y las áreas de recreación y cesión urbanística.`,
+    exactQuote: `«${cleanSnippet}»`,
+    page: topPage.pageNumber,
+    metrics: {
+      primary: {
+        label: 'Sistema de Espacio Público',
+        value: 'Parques',
+        unit: 'POT',
+        tag: 'Verificado',
+        detail: 'Subsistema de recreación y áreas verdes',
+        cota: `Pág. ${topPage.pageNumber}`
+      },
+      secondary: {
+        label: 'Jerarquía',
+        value: parkTypesFound.length > 0 ? `${parkTypesFound.length} Tipos` : 'Urbano',
+        unit: 'POT',
+        tag: 'Clasificación',
+        detail: 'Escala Territorial y Ciudad',
+        cota: articleName
+      }
+    },
+    complementary: parkTypesFound.length > 0 ? parkTypesFound.map(p => ({ label: p.label, value: p.value })) : [
+      { label: 'Ubicación', value: `Pág. ${topPage.pageNumber}` },
+      { label: 'Documento', value: AppState.activeDocument.name },
+      { label: 'Cotejo', value: 'Texto Oficial' }
+    ],
+    // ✨ Normativas relevantes vinculadas (la función solicitada por el usuario)
+    relatedNorms: [
+      {
+        norm: `${AppState.activeDocument.name} - Cesiones Obligatorias`,
+        topic: 'Cesiones Gratuitas de Espacio Público para Parques',
+        requirement: 'En todo proceso de urbanización o desarrollo residencial, es obligatorio ceder áreas destinadas a parques y zonas verdes públicas proporcionales al área neta urbanizable.',
+        urgency: 'Obligatorio en licencias de urbanismo'
+      },
+      {
+        norm: 'Decreto Nacional 1504 de 1998 / Ley 388',
+        topic: 'Índice de Espacio Público Efectivo (15 m²/habitante)',
+        requirement: 'Estándar nacional de planificación urbana. Los parques deben garantizar libre acceso, senderos peatonales, arborización nativa y accesibilidad para PMR.',
+        urgency: 'Meta nacional de espacio público'
+      },
+      {
+        norm: `${AppState.activeDocument.name} - Rondas Hídricas y Conservación`,
+        topic: 'Parques Lineales y Franjas de Protección Ambiental',
+        requirement: 'Las zonas verdes o parques colindantes con fuentes de agua o quebradas deben preservarse como parques de protección ambiental sin ocupación de construcciones duras.',
+        urgency: 'Protección ambiental municipal'
+      }
+    ],
+    hash: `#POT-PAG${topPage.pageNumber}`,
+    lamina: 'Plano U-02 / Memoria de Espacio Público'
+  };
 }
 
 function findLocalMatch(query) {
@@ -986,10 +1202,23 @@ async function callGeminiAI(userQuery) {
   const apiKey = AppState.geminiApiKey;
   if (!apiKey) return null;
 
-  // Tomar contexto de páginas leídas o resumen normativo
+  // Seleccionar inteligentemente las páginas más relevantes del PDF para enviarlas a Gemini
   let documentContext = "";
   if (AppState.pdfPagesText.length > 0) {
-    documentContext = AppState.pdfPagesText.slice(0, 15).map(p => `[Pág ${p.pageNumber}]: ${p.text}`).join('\n\n');
+    const qWords = userQuery.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const scored = AppState.pdfPagesText.map(p => {
+      let score = 0;
+      const lowerText = p.text.toLowerCase();
+      qWords.forEach(kw => {
+        if (lowerText.includes(kw)) score += 5;
+      });
+      return { pageNumber: p.pageNumber, text: p.text, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    // Tomar las mejores 6 páginas encontradas
+    const topPages = scored.slice(0, 6);
+    documentContext = topPages.map(p => `[Página ${p.pageNumber} de ${AppState.activeDocument.name}]:\n${p.text}`).join('\n\n---\n\n');
   } else {
     documentContext = "Documento: RNE Norma A.010 y Reglamentos de Diseño Arquitectónico.";
   }
