@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>NormaArq - Asistente Inteligente Normativo para Arquitectura</title>
+  
+  <!-- Tipografías Oficiales e Iconos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  
+  <!-- PDF.js para lectura e indexación en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Configurar worker de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <!-- Tailwind CSS y Sistema de Diseño NormaArq -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#f8f9ff",
+            "surface-dim": "#cbdbf5",
+            "surface-bright": "#f8f9ff",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "surface-container": "#e5eeff",
+            "surface-container-high": "#dce9ff",
+            "surface-container-highest": "#d3e4fe",
+            "on-surface": "#0b1c30",
+            "on-surface-variant": "#45464d",
+            "outline": "#76777d",
+            "outline-variant": "#c6c6cd",
+            "primary": "#000000",
+            "on-primary": "#ffffff",
+            "primary-container": "#131b2e",
+            "secondary": "#0051d5",
+            "on-secondary": "#ffffff",
+            "secondary-container": "#316bf3",
+            "on-tertiary-container": "#e45405",
+            "inverse-surface": "#213145",
+            "inverse-on-surface": "#eaf1ff"
+          },
+          fontFamily: {
+            "body-md": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "label-sm": ["JetBrains Mono", "monospace"],
+            "label-md": ["JetBrains Mono", "monospace"],
+            "label-lg": ["JetBrains Mono", "monospace"]
+          },
+          spacing: {
+            "gutter": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2.5rem"
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #ficha-tecnica-printable, #ficha-tecnica-printable * { visibility: visible; }
+      #ficha-tecnica-printable { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+
+<body class="bg-surface font-body-md text-on-surface antialiased">
+
+  <!-- ========================================== -->
+  <!-- TOPBAR 1: BANNER DE AVISO ACADÉMICO        -->
+  <!-- ========================================== -->
+  <div class="fixed top-0 left-0 right-0 z-50 bg-surface-container-high border-b border-outline-variant">
+    <div class="h-7 px-gutter flex items-center justify-between text-on-surface-variant font-label-sm text-xs">
+      <div class="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span class="material-symbols-outlined text-[14px] text-secondary flex-shrink-0">gavel</span>
+        <span class="font-label-md text-on-surface uppercase tracking-wider font-semibold">Aviso Académico:</span>
+        <span class="truncate">NormaArq analiza el documento cargado para estudio; no reemplaza la revisión profesional ni valida vigencia legal oficial.</span>
+      </div>
+      <div class="flex items-center gap-4 flex-shrink-0">
+        <span class="flex items-center gap-1 text-on-surface-variant">
+          <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>Régimen Docente
+        </span>
+        <a class="underline hover:text-on-surface transition-colors cursor-pointer" data-path="avisos-y-limites">Ver Términos y No-Alcance</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- TOPBAR 2: NAVEGADOR PRINCIPAL             -->
+  <!-- ========================================== -->
+  <header class="fixed top-7 left-0 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant">
+    <div class="h-16 px-gutter flex items-center justify-between gap-space-md">
+      
+      <!-- Marca y Contexto Proyectual -->
+      <div class="flex items-center gap-space-md flex-shrink-0">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="navigateToTab('espacio-de-consulta')">
+          <div class="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-white shadow-sm font-bold font-label-lg">
+            NA
+          </div>
+          <div class="flex flex-col">
+            <span class="font-headline-sm text-lg tracking-tight text-on-surface font-bold leading-none">NormaArq</span>
+            <span class="font-label-sm text-[10px] text-on-surface-variant tracking-wider uppercase mt-0.5">Asistente Normativo Académico</span>
+          </div>
+        </div>
+
+        <div class="h-8 w-px bg-outline-variant mx-1 hidden lg:block"></div>
+
+        <!-- Proyecto Activo -->
+        <div class="hidden lg:flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant">
+          <span class="material-symbols-outlined text-[16px] text-on-surface-variant">folder_open</span>
+          <div class="flex flex-col">
+            <span class="font-label-sm text-[9px] text-on-surface-variant uppercase leading-tight font-semibold">Proyecto Activo</span>
+            <span class="font-body-sm text-xs font-semibold text-on-surface">Taller V - Vivienda Colectiva</span>
+          </div>
+        </div>
+
+        <!-- Norma en Estudio Activa -->
+        <div class="hidden xl:flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-lg border-l-4 border-l-secondary border-t border-r border-b border-outline-variant">
+          <span class="material-symbols-outlined text-[16px] text-secondary">menu_book</span>
+          <div class="flex flex-col">
+            <span class="font-label-sm text-[9px] text-on-surface-variant uppercase leading-tight font-semibold">Norma en Estudio</span>
+            <span class="font-label-md text-xs text-on-surface font-medium truncate max-w-[220px] active-doc-title">RNE - Norma A.010 Condiciones Generales</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buscador Global Rápido -->
+      <div class="flex-1 max-w-md mx-space-md hidden md:block">
+        <div class="relative flex items-center w-full">
+          <span class="material-symbols-outlined absolute left-3 text-[18px] text-outline pointer-events-none">search</span>
+          <input id="global-search-input" class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-9 pr-12 py-1.5 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary transition-colors" placeholder="Buscar artículo, retiro, pasillo, escalera..." type="text">
+          <kbd class="absolute right-2 px-1.5 py-0.5 bg-surface border border-outline-variant rounded font-label-sm text-[10px] text-outline">Ctrl+K</kbd>
+        </div>
+      </div>
+
+      <!-- Acciones de Usuario e IA -->
+      <div class="flex items-center gap-space-sm flex-shrink-0">
+        <!-- Botón Configuración de IA / Gemini -->
+        <button id="open-settings-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container text-secondary rounded-lg border border-outline-variant text-xs font-semibold transition-all shadow-xs" title="Configurar Google Gemini API">
+          <span class="material-symbols-outlined text-[16px]">smart_toy</span>
+          <span class="hidden sm:inline">Motor IA</span>
+        </button>
+
+        <div class="h-7 w-px bg-outline-variant hidden sm:block"></div>
+
+        <!-- Perfil Estudiante -->
+        <div class="flex items-center gap-2">
+          <div class="flex flex-col items-end hidden sm:flex">
+            <span class="text-xs font-bold text-on-surface leading-tight">Sebastian Castellanos</span>
+            <span class="font-label-sm text-[10px] text-secondary bg-surface-container px-1.5 py-0.5 rounded leading-tight mt-0.5 font-semibold">Univ. de Boyacá</span>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs border border-outline-variant">
+            SC
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- SIDEBAR: NAVEGACIÓN LATERAL               -->
+  <!-- ========================================== -->
+  <aside class="fixed left-0 top-[92px] h-[calc(100vh-92px)] w-64 bg-surface-container-lowest border-r border-outline-variant z-30 flex flex-col justify-between overflow-y-auto">
+    <div class="p-space-md">
+      <div class="mb-space-md px-space-xs">
+        <span class="font-label-sm text-[10px] uppercase tracking-wider text-outline font-bold">Módulos de Taller</span>
+      </div>
+      
+      <nav class="flex flex-col gap-1">
+        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all text-sm font-medium border-l-2 border-transparent cursor-pointer" data-path="documentos">
+          <span class="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+          <span>Documentos y PDF</span>
+        </a>
+        <a aria-current="page" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all bg-surface-container text-on-surface font-semibold border-l-2 border-secondary cursor-pointer" data-path="espacio-de-consulta">
+          <span class="material-symbols-outlined text-[20px]">vertical_split</span>
+          <span>Espacio de Consulta</span>
+        </a>
+        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all text-sm font-medium border-l-2 border-transparent cursor-pointer" data-path="fichas-normativas">
+          <span class="material-symbols-outlined text-[20px]">bookmark_added</span>
+          <span>Fichas Normativas</span>
+        </a>
+        <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all text-sm font-medium border-l-2 border-transparent cursor-pointer" data-path="avisos-y-limites">
+          <span class="material-symbols-outlined text-[20px]">policy</span>
+          <span>Avisos y Límites</span>
+        </a>
+      </nav>
+
+      <!-- Expediente Activo Widget -->
+      <div class="mt-space-lg pt-space-md border-t border-outline-variant px-space-xs">
+        <span class="font-label-sm text-[10px] uppercase tracking-wider text-outline font-bold">Expediente Activo</span>
+        <div class="mt-space-sm p-3 bg-surface-container-low rounded-lg border border-outline-variant">
+          <div class="flex items-center justify-between text-on-surface-variant font-label-sm text-xs">
+            <span class="truncate font-medium active-doc-title">Norma_A010_RNE.pdf</span>
+            <span class="text-secondary font-mono font-bold">v2023</span>
+          </div>
+          <div class="mt-2 w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+            <div class="bg-secondary h-full w-full rounded-full"></div>
+          </div>
+          <div class="mt-1 flex justify-between font-label-sm text-[10px] text-outline">
+            <span>Indexado OCR</span>
+            <span class="text-secondary font-bold active-doc-legibility">100% OK</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pie del Sidebar: Licencia Académica -->
+    <div class="p-space-md border-t border-outline-variant bg-surface-container-low">
+      <div class="flex items-center justify-between text-on-surface-variant">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[16px] text-secondary">school</span>
+          <span class="font-label-sm text-[11px] font-bold uppercase">Licencia Académica</span>
+        </div>
+        <span class="font-label-sm text-[10px] text-outline">v2.4.0</span>
+      </div>
+      <p class="mt-1 text-xs text-outline leading-tight">Facultad de Arquitectura & Urbanismo • Univ. de Boyacá</p>
+    </div>
+  </aside>
+
+  <!-- ========================================== -->
+  <!-- CONTENEDOR PRINCIPAL DE VISTAS            -->
+  <!-- ========================================== -->
+  <div class="pl-64">
+    <main class="min-h-[calc(100vh-92px)] pt-[92px] bg-surface">
+
+      <!-- ======================================================== -->
+      <!-- VISTA 1: DOCUMENTOS Y CARGA PDF                          -->
+      <!-- ======================================================== -->
+      <div id="view-documentos" class="hidden px-gutter py-space-lg flex flex-col gap-space-lg max-w-[1520px] mx-auto w-full">
+        <!-- Encabezado de Documentos -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+          <div class="flex flex-col max-w-2xl">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-xs tracking-wider uppercase font-semibold">
+                Módulo 01 // Ingesta Técnica
+              </span>
+              <span class="text-outline-variant">•</span>
+              <span class="font-label-sm text-xs text-secondary font-medium">Indexación OCR Activa</span>
+            </div>
+            <h1 class="font-headline-lg text-2xl md:text-3xl text-on-surface tracking-tight font-bold">
+              Gestor de Normas y Reglamentos en PDF
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">
+              Carga cualquier documento normativo (POT, NSR-10, Reglamentos Nacionales de Edificación). NormaArq extrae el texto, audita la legibilidad y estructura los capítulos para consultas con citas exactas.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-on-secondary text-sm font-semibold hover:bg-blue-700 transition-all shadow-sm" onclick="document.getElementById('pdf-file-input').click()">
+              <span class="material-symbols-outlined text-[18px]">upload_file</span>
+              <span>Subir Archivo PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid: Dropzone & Expediente Activo -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+          
+          <!-- Dropzone Card -->
+          <div class="lg:col-span-5 flex flex-col gap-space-md">
+            <div id="dropzone-box" class="relative group rounded-xl p-space-lg bg-surface-container-lowest shadow-sm hover:shadow-md transition-all duration-200 border-2 border-dashed border-outline-variant overflow-hidden cursor-pointer">
+              <div class="relative flex flex-col items-center text-center space-y-3">
+                <div class="w-16 h-16 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:scale-105 transition-transform duration-200">
+                  <span class="material-symbols-outlined text-[36px]">cloud_upload</span>
+                </div>
+                <div class="flex flex-col">
+                  <h3 class="font-headline-sm text-lg text-on-surface font-bold">Carga tu Norma o Reglamento</h3>
+                  <span class="font-label-sm text-xs text-outline mt-0.5">Formato PDF con texto seleccionable o vectorial</span>
+                </div>
+                <div class="pt-1">
+                  <span class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-on-secondary font-label-md text-xs font-semibold">
+                    <span class="material-symbols-outlined text-[16px]">folder_open</span>
+                    <span>Explorar Archivo</span>
+                  </span>
+                  <input id="pdf-file-input" accept="application/pdf" class="hidden" type="file">
+                </div>
+                <div class="w-full grid grid-cols-3 gap-2 pt-3 border-t border-outline-variant">
+                  <div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low text-center">
+                    <span class="w-5 h-5 rounded-full bg-secondary text-white font-label-sm text-[10px] font-bold flex items-center justify-center mb-1">1</span>
+                    <span class="font-label-sm text-[10px] font-semibold text-on-surface">Subir PDF</span>
+                  </div>
+                  <div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low text-center">
+                    <span class="w-5 h-5 rounded-full bg-surface-container text-secondary font-label-sm text-[10px] font-bold flex items-center justify-center mb-1">2</span>
+                    <span class="font-label-sm text-[10px] font-semibold text-on-surface">Indexar Texto</span>
+                  </div>
+                  <div class="flex flex-col items-center p-2 rounded-lg bg-surface-container-low text-center">
+                    <span class="w-5 h-5 rounded-full bg-surface-container text-outline font-label-sm text-[10px] font-bold flex items-center justify-center mb-1">3</span>
+                    <span class="font-label-sm text-[10px] font-semibold text-on-surface">Consultar</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Guía Rápida para el Estudiante -->
+            <div class="p-space-md rounded-xl bg-surface-container-low border border-outline-variant shadow-xs">
+              <div class="flex items-center justify-between mb-2">
+                <span class="inline-flex items-center gap-1.5 font-label-sm text-xs font-bold uppercase tracking-wider text-secondary">
+                  <span class="material-symbols-outlined text-[16px]">straighten</span> Recomendaciones de Taller
+                </span>
+                <span class="font-label-sm text-[10px] px-2 py-0.5 rounded bg-surface-container-highest text-secondary font-bold">PRO-TIP</span>
+              </div>
+              <p class="text-xs text-on-surface-variant leading-relaxed">
+                Asegúrate de que el PDF permita seleccionar texto. Los documentos escaneados como imagen pura requieren OCR previo para que NormaArq pueda citar con número de página y artículo exacto.
+              </p>
+            </div>
+          </div>
+
+          <!-- Live Document in Analysis Card -->
+          <div class="lg:col-span-7 flex flex-col rounded-xl bg-surface-container-lowest shadow-sm border border-outline-variant overflow-hidden">
+            <div class="p-space-md bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm border-b border-outline-variant">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-surface-container-highest text-secondary flex items-center justify-center flex-shrink-0">
+                  <span class="material-symbols-outlined text-[22px]">verified</span>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <span class="font-label-sm text-[10px] uppercase tracking-wider text-secondary font-bold">Expediente en Estudio Activo</span>
+                  <span class="font-headline-sm text-sm sm:text-base text-on-surface font-bold truncate active-doc-title">RNE - Norma A.010: Condiciones Generales de Diseño</span>
+                </div>
+              </div>
+              <span class="font-label-sm text-xs px-2.5 py-1 rounded bg-secondary/10 text-secondary font-mono font-bold">
+                DOCUMENTO LISTO
+              </span>
+            </div>
+
+            <!-- Metric Badges Strip -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-outline-variant text-on-surface">
+              <div class="bg-surface-container-lowest p-3 flex flex-col">
+                <span class="font-label-sm text-[10px] text-outline uppercase tracking-wider">Legibilidad</span>
+                <span class="font-label-md text-xs font-semibold text-on-surface mt-0.5 flex items-center gap-1 active-doc-legibility">
+                  <span class="w-2 h-2 rounded-full bg-secondary"></span> 100% Vectorial
+                </span>
+              </div>
+              <div class="bg-surface-container-lowest p-3 flex flex-col">
+                <span class="font-label-sm text-[10px] text-outline uppercase tracking-wider">Extensión</span>
+                <span class="font-label-md text-xs font-semibold text-on-surface mt-0.5 active-doc-pages">84 Páginas</span>
+              </div>
+              <div class="bg-surface-container-lowest p-3 flex flex-col">
+                <span class="font-label-sm text-[10px] text-outline uppercase tracking-wider">Peso de Archivo</span>
+                <span class="font-label-md text-xs font-semibold text-on-surface mt-0.5 active-doc-size">14.2 MB</span>
+              </div>
+              <div class="bg-surface-container-lowest p-3 flex flex-col">
+                <span class="font-label-sm text-[10px] text-outline uppercase tracking-wider">Capítulos</span>
+                <span class="font-label-md text-xs font-semibold text-on-surface mt-0.5">5 Indexados</span>
+              </div>
+            </div>
+
+            <!-- Document Structural Map -->
+            <div class="p-space-md flex flex-col gap-space-sm">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-secondary text-[18px]">layers</span>
+                  <span class="font-label-md text-xs text-on-surface font-bold uppercase tracking-wide">Estructura Detectada</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-full bg-surface-container font-label-sm text-[10px] text-secondary font-mono font-bold">68 Artículos Procesados</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-label-sm text-xs font-mono text-secondary font-bold bg-surface-container-lowest px-1.5 py-0.5 rounded shadow-xs">C.I</span>
+                    <span class="text-xs text-on-surface font-semibold truncate">Ámbito & Aplicación</span>
+                  </div>
+                  <span class="font-label-sm text-[10px] text-outline font-mono">Arts. 1–5</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-label-sm text-xs font-mono text-secondary font-bold bg-surface-container-lowest px-1.5 py-0.5 rounded shadow-xs">C.II</span>
+                    <span class="text-xs text-on-surface font-semibold truncate">Vía Pública y Retiros</span>
+                  </div>
+                  <span class="font-label-sm text-[10px] text-outline font-mono">Arts. 6–18</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-label-sm text-xs font-mono text-secondary font-bold bg-surface-container-lowest px-1.5 py-0.5 rounded shadow-xs">C.III</span>
+                    <span class="text-xs text-on-surface font-semibold truncate">Accesibilidad & Vías</span>
+                  </div>
+                  <span class="font-label-sm text-[10px] text-outline font-mono">Arts. 19–34</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/60">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="font-label-sm text-xs font-mono text-secondary font-bold bg-surface-container-lowest px-1.5 py-0.5 rounded shadow-xs">C.IV</span>
+                    <span class="text-xs text-on-surface font-semibold truncate">Dimensiones & Altura</span>
+                  </div>
+                  <span class="font-label-sm text-[10px] text-outline font-mono">Arts. 35–49</span>
+                </div>
+              </div>
+
+              <div class="mt-2 pt-3 border-t border-outline-variant flex items-center justify-between">
+                <span class="text-xs text-on-surface-variant font-label-sm">Tokens calculados: <strong>148.2k</strong></span>
+                <button class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm" onclick="navigateToTab('espacio-de-consulta')">
+                  <span>Ir al Espacio de Consulta</span>
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VISTA 2: ESPACIO DE CONSULTA Y VISOR DIVIDIDO            -->
+      <!-- ======================================================== -->
+      <div id="view-espacio-de-consulta" class="w-full h-[calc(100vh-92px)] flex flex-col xl:flex-row overflow-hidden bg-surface">
+        
+        <!-- PANE IZQUIERDO: ASISTENTE DE CONSULTA NORMATIVA (48%) -->
+        <section class="w-full xl:w-[48%] flex flex-col h-full bg-surface-container-lowest border-r border-outline-variant overflow-hidden">
+          
+          <!-- Sub-header: Estado de Expediente -->
+          <div class="h-11 px-space-md bg-surface-container-low flex items-center justify-between shadow-xs z-10 flex-shrink-0 border-b border-outline-variant">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="flex h-2 w-2 rounded-full bg-secondary ring-4 ring-secondary/20"></span>
+              <span class="font-label-sm text-[10px] uppercase tracking-wider text-outline font-semibold">Analizando:</span>
+              <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-on-surface font-label-md text-xs truncate">
+                <span class="material-symbols-outlined text-[14px] text-secondary">description</span>
+                <span class="font-semibold truncate active-doc-title">RNE - Norma A.010 Condiciones Generales</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-surface-container font-label-sm text-[10px] text-secondary font-bold">Verificado</span>
+              <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Ver Límites de Consulta" onclick="navigateToTab('avisos-y-limites')">
+                <span class="material-symbols-outlined text-[16px]">info</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hilo de Conversación (Scrollable) -->
+          <div class="flex-1 overflow-y-auto px-space-md py-space-md space-y-space-md">
+            
+            <!-- Marca de Sesión -->
+            <div class="flex items-center gap-space-md my-1">
+              <div class="flex-1 h-px bg-surface-container-high"></div>
+              <span class="font-label-sm text-[10px] uppercase tracking-wider text-outline px-2">Sesión de Taller V • Consulta Normativa</span>
+              <div class="flex-1 h-px bg-surface-container-high"></div>
+            </div>
+
+            <!-- Burbuja de Consulta del Estudiante -->
+            <div class="flex items-start gap-2 max-w-[92%] ml-auto justify-end">
+              <div class="flex flex-col items-end">
+                <div class="bg-primary text-on-primary px-4 py-2.5 rounded-xl rounded-tr-none shadow-sm max-w-xl">
+                  <p id="user-query-bubble-text" class="text-sm leading-relaxed text-slate-100">
+                    ¿Cuál es el ancho mínimo libre requerido para una escalera común de uso público en un edificio multifamiliar de 4 pisos y qué altura mínima de paso debe cumplir?
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 mt-1 px-1">
+                  <span id="user-query-time" class="font-label-sm text-[10px] text-outline">16:42 • Arq. Estudiante Sebastian Castellanos</span>
+                  <span class="material-symbols-outlined text-[13px] text-secondary">done_all</span>
+                </div>
+              </div>
+              <div class="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
+                SC
+              </div>
+            </div>
+
+            <!-- Indicador de Carga / Búsqueda -->
+            <div id="query-loading-indicator" class="hidden flex items-center gap-3 p-4 bg-surface-container-low rounded-xl border border-secondary/30">
+              <div class="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
+              <div class="flex flex-col">
+                <span class="text-xs font-bold text-on-surface">Analizando texto del PDF normativo...</span>
+                <span class="font-label-sm text-[10px] text-outline">Extrayendo artículos y cotas con cotejo exacto</span>
+              </div>
+            </div>
+
+            <!-- TARJETA ESTRUCTURADA DE VERIFICACIÓN (ÉXITO) -->
+            <div id="verification-card-container" class="flex items-start gap-2 max-w-[98%]">
+              <div class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-white shadow-sm flex-shrink-0 mt-1">
+                <span class="material-symbols-outlined text-[18px]">balance</span>
+              </div>
+
+              <div class="flex-1 bg-surface-container-low rounded-xl p-space-md space-y-3 shadow-sm border border-outline-variant">
+                
+                <!-- Encabezado de Validación -->
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-surface-container-lowest p-2.5 rounded-lg border border-outline-variant shadow-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white">
+                      <span class="material-symbols-outlined text-[13px]">verified</span>
+                    </span>
+                    <span class="font-label-md text-xs font-bold text-on-surface">Normativa Verificada</span>
+                    <span class="px-2 py-0.5 rounded bg-emerald-600/10 text-emerald-700 font-label-sm text-[10px] font-bold">Cotejo 100% Exacto</span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span id="related-norms-count" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/10 font-label-sm text-[10px] text-secondary font-bold">
+                      <span class="material-symbols-outlined text-[12px]">link</span> 4 Normas Conexas
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Resumen Explicativo -->
+                <p id="card-summary-text" class="text-xs text-on-surface leading-relaxed bg-surface-container-lowest p-2.5 rounded-lg border border-outline-variant">
+                  Para edificios residenciales multifamiliares de más de 3 niveles o con más de 2 departamentos por piso, la escalera común debe tener un ancho mínimo libre de 1.20 m entre paramentos acabados. La altura libre de paso (gálibo) no puede ser menor a 2.10 m.
+                </p>
+
+                <!-- Cuadrícula de Métricas Clave de Diseño -->
+                <div class="grid grid-cols-2 gap-3">
+                  <!-- Métrica 1 -->
+                  <div class="bg-surface-container-lowest p-3 rounded-lg border-2 border-secondary/30 relative overflow-hidden shadow-xs">
+                    <div id="card-metric1-tag" class="absolute top-0 right-0 px-2 py-0.5 bg-secondary text-white font-label-sm text-[9px] uppercase font-bold rounded-bl">Obligatorio</div>
+                    <div class="flex items-center gap-1.5 text-secondary mb-1">
+                      <span class="material-symbols-outlined text-[16px]">straighten</span>
+                      <span id="card-metric1-title" class="font-label-sm text-[10px] uppercase font-bold tracking-wider">Ancho de Tramo</span>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                      <span id="card-metric1-value" class="text-2xl font-extrabold text-on-surface">1.20</span>
+                      <span id="card-metric1-unit" class="font-label-md text-xs font-bold text-secondary">m</span>
+                    </div>
+                    <p id="card-metric1-desc" class="text-[11px] text-on-surface-variant mt-1 leading-snug">Ancho libre entre paramentos acabados</p>
+                    <div class="mt-2 pt-1.5 border-t border-outline-variant flex items-center justify-between text-outline font-label-sm text-[9px]">
+                      <span>Cota W.min</span>
+                      <span id="card-metric1-cota" class="font-mono font-bold text-on-surface">≥ 120 cm</span>
+                    </div>
+                  </div>
+
+                  <!-- Métrica 2 -->
+                  <div class="bg-surface-container-lowest p-3 rounded-lg border-2 border-on-tertiary-container/30 relative overflow-hidden shadow-xs">
+                    <div id="card-metric2-tag" class="absolute top-0 right-0 px-2 py-0.5 bg-on-tertiary-container text-white font-label-sm text-[9px] uppercase font-bold rounded-bl">Gálibo</div>
+                    <div class="flex items-center gap-1.5 text-on-tertiary-container mb-1">
+                      <span class="material-symbols-outlined text-[16px]">height</span>
+                      <span id="card-metric2-title" class="font-label-sm text-[10px] uppercase font-bold tracking-wider">Altura de Paso</span>
+                    </div>
+                    <div class="flex items-baseline gap-1">
+                      <span id="card-metric2-value" class="text-2xl font-extrabold text-on-surface">2.10</span>
+                      <span id="card-metric2-unit" class="font-label-md text-xs font-bold text-on-tertiary-container">m</span>
+                    </div>
+                    <p id="card-metric2-desc" class="text-[11px] text-on-surface-variant mt-1 leading-snug">Desde arista de gradas al cielo raso o losa</p>
+                    <div class="mt-2 pt-1.5 border-t border-outline-variant flex items-center justify-between text-outline font-label-sm text-[9px]">
+                      <span>Cota H.libre</span>
+                      <span id="card-metric2-cota" class="font-mono font-bold text-on-surface">≥ 210 cm</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Parámetros Complementarios -->
+                <div class="bg-surface-container-lowest p-2.5 rounded-lg border border-outline-variant space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5 text-on-surface font-label-md text-xs font-semibold">
+                      <span class="material-symbols-outlined text-[16px] text-secondary">architecture</span>
+                      <span>Parámetros Complementarios</span>
+                    </div>
+                    <span class="text-[10px] font-label-sm text-outline">Dimensiones Reglamentarias</span>
+                  </div>
+                  <div id="card-complementary-grid" class="grid grid-cols-3 gap-2 pt-1">
+                    <div class="bg-surface-container-low p-2 rounded text-center">
+                      <span class="block text-[10px] font-label-sm uppercase text-outline">Paso (Huella)</span>
+                      <span class="font-mono font-bold text-on-surface text-xs">≥ 0.28 m</span>
+                    </div>
+                    <div class="bg-surface-container-low p-2 rounded text-center">
+                      <span class="block text-[10px] font-label-sm uppercase text-outline">Contrapaso</span>
+                      <span class="font-mono font-bold text-on-surface text-xs">0.16-0.18 m</span>
+                    </div>
+                    <div class="bg-surface-container-low p-2 rounded text-center">
+                      <span class="block text-[10px] font-label-sm uppercase text-outline">Descanso</span>
+                      <span class="font-mono font-bold text-on-surface text-xs">≥ 1.20 m</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cita Oficial y Salto al Visor -->
+                <div class="bg-surface-container-lowest p-2.5 rounded-lg border border-outline-variant flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-[18px] text-secondary flex-shrink-0">pin_drop</span>
+                    <div class="truncate">
+                      <span class="text-[10px] font-label-sm uppercase font-bold text-outline">Cita Oficial Verificada</span>
+                      <p id="card-official-citation" class="font-mono text-xs text-on-surface font-semibold truncate">Cap. V, Art. 26, Incisos b.2 y d.1 (Pág. 42)</p>
+                    </div>
+                  </div>
+                  <button class="px-2.5 py-1.5 bg-secondary text-on-secondary rounded-lg font-label-sm text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1 flex-shrink-0 shadow-xs" onclick="syncToViewer(42)">
+                    <span class="material-symbols-outlined text-[14px]">travel_explore</span>
+                    <span id="card-page-badge">Ver Pág. 42</span>
+                  </button>
+                </div>
+
+                <!-- Barra de Acciones y ✨ Botón de Ficha Técnica -->
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                  <!-- Botón Ficha Técnica (Requerimiento del usuario) -->
+                  <button id="open-ficha-tecnica-btn" class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-blue-700 transition-all font-label-md text-xs font-semibold shadow-xs">
+                    <span class="material-symbols-outlined text-[16px]">assignment</span>
+                    <span>Generar Ficha Técnica</span>
+                  </button>
+
+                  <button id="save-card-btn" class="inline-flex items-center justify-center gap-1 px-3 py-2 bg-primary text-on-primary rounded-lg hover:bg-slate-800 transition-all font-label-md text-xs font-semibold shadow-xs">
+                    <span class="material-symbols-outlined text-[15px]">bookmark_add</span>
+                    <span>Guardar</span>
+                  </button>
+
+                  <button id="copy-citation-btn" class="inline-flex items-center justify-center gap-1 px-3 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg transition-colors font-label-md text-xs font-medium">
+                    <span class="material-symbols-outlined text-[15px]">content_copy</span>
+                    <span>Copiar Cita</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- TARJETA DE CONSULTA SIN EVIDENCIA (ZERO-HALLUCINATION) -->
+            <div id="no-evidence-card-container" class="hidden flex items-start gap-2 max-w-[98%]">
+              <div class="w-8 h-8 rounded-full bg-on-tertiary-container flex items-center justify-center text-white shadow-sm flex-shrink-0 mt-1">
+                <span class="material-symbols-outlined text-[18px]">verified</span>
+              </div>
+              <div class="flex-1 bg-surface-container-low rounded-xl p-space-md space-y-3 shadow-sm border border-outline-variant">
+                <div class="flex items-center justify-between pb-1 border-b border-outline-variant">
+                  <div class="flex items-center gap-2">
+                    <span class="font-label-md text-xs font-bold text-on-surface">Dictamen Automatizado</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-tertiary-container font-label-sm text-[10px] font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container animate-pulse"></span>
+                    SIN EVIDENCIA EN NORMA ACTIVA
+                  </span>
+                </div>
+                <div class="p-3 bg-surface-container-lowest rounded-lg border-l-4 border-l-on-tertiary-container">
+                  <span class="font-bold text-xs text-on-surface block mb-1">Resolución Hermenéutica: Cero Alucinación</span>
+                  <p class="text-xs text-on-surface-variant leading-relaxed">
+                    NormaArq <strong class="text-on-surface">no inventa parámetros ni ratios</strong> para proteger la rigurosidad de tu entrega. La consulta <span id="no-evidence-query-title" class="font-semibold text-on-surface"></span> no figura de forma explícita en el documento cargado.
+                  </p>
+                </div>
+                <div class="flex items-center justify-between text-xs font-label-sm pt-1">
+                  <span class="text-outline">Revisa otras normas especializadas</span>
+                  <button class="px-3 py-1.5 bg-primary text-on-primary rounded font-semibold text-xs" onclick="navigateToTab('documentos')">Cargar Otra Norma</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Módulo Inferior: Barra de Consulta y Sugerencias -->
+          <div class="p-space-md bg-surface-container-low shadow-sm flex-shrink-0 space-y-2 border-t border-outline-variant">
+            <!-- Chips de Sugerencia -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-label-sm">
+              <span class="text-outline uppercase text-[10px] font-semibold whitespace-nowrap">Sugerencias:</span>
+              <button class="px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant transition-colors whitespace-nowrap border border-outline-variant" onclick="insertQuery('ancho de escaleras multifamiliar')">
+                #Escaleras
+              </button>
+              <button class="px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant transition-colors whitespace-nowrap border border-outline-variant" onclick="insertQuery('dimensiones de estacionamiento y rampa')">
+                #Estacionamientos
+              </button>
+              <button class="px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant transition-colors whitespace-nowrap border border-outline-variant" onclick="insertQuery('voladizos y retiros municipales')">
+                #RetirosYVolados
+              </button>
+              <button class="px-2 py-0.5 rounded-full bg-surface-container-lowest hover:bg-surface-container text-on-surface-variant transition-colors whitespace-nowrap border border-outline-variant" onclick="insertQuery('patio de iluminacion y ventilacion')">
+                #PozosDeLuz
+              </button>
+            </div>
+
+            <!-- Caja de Texto del Prompt -->
+            <div class="relative flex items-center bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant focus-within:ring-2 focus-within:ring-secondary">
+              <span class="material-symbols-outlined text-outline pl-3 text-[20px]">search</span>
+              <input id="query-input" class="w-full bg-transparent px-3 py-2.5 text-xs sm:text-sm text-on-surface placeholder:text-outline focus:outline-none" placeholder="Escribe tu consulta sobre un requisito arquitectónico..." type="text">
+              <button id="submit-query-btn" class="m-1 px-3 py-1.5 bg-secondary text-on-secondary rounded-lg font-label-md text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-xs">
+                <span>Consultar</span>
+                <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- PANE DERECHO: VISOR TÉCNICO DE PDF (52%) -->
+        <section class="w-full xl:w-[52%] flex flex-col h-full bg-slate-900 overflow-hidden relative">
+          
+          <!-- Barra de Herramientas del Visor -->
+          <div class="h-11 px-4 bg-slate-950 text-slate-300 flex items-center justify-between border-b border-slate-800 z-10 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px] text-blue-400">picture_as_pdf</span>
+              <span class="text-xs font-mono font-semibold truncate max-w-[200px] sm:max-w-xs active-doc-title">RNE - Norma A.010</span>
+            </div>
+
+            <!-- Controles de Navegación y Zoom -->
+            <div class="flex items-center gap-2">
+              <button id="prev-page-btn" class="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors" title="Página Anterior">
+                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+              
+              <div class="flex items-center gap-1 font-mono text-xs">
+                <input id="viewer-current-page-input" class="w-10 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center text-white" value="42" type="number">
+                <span id="viewer-max-pages" class="text-slate-400 active-doc-pages">/ 84</span>
+              </div>
+
+              <button id="next-page-btn" class="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors" title="Página Siguiente">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+
+              <div class="h-4 w-px bg-slate-800 mx-1"></div>
+
+              <button id="zoom-out-btn" class="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors" title="Reducir Zoom">
+                <span class="material-symbols-outlined text-[18px]">remove</span>
+              </button>
+              <button id="zoom-in-btn" class="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors" title="Aumentar Zoom">
+                <span class="material-symbols-outlined text-[18px]">add</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lienzo de Lectura de la Página del PDF -->
+          <div class="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-900/90">
+            <!-- Canvas real renderizado por PDF.js -->
+            <canvas id="pdf-canvas" class="hidden shadow-2xl rounded border border-slate-800 max-w-full"></canvas>
+
+            <!-- Mock visual interactivo de respaldo cuando se analiza la norma demostrativa -->
+            <div id="pdf-canvas-mock" class="bg-white text-slate-900 w-[540px] min-h-[680px] p-8 rounded shadow-2xl border border-slate-700 flex flex-col justify-between font-serif text-[11px] leading-relaxed relative">
+              <div>
+                <!-- Encabezado de Página Oficial -->
+                <div class="flex justify-between border-b border-slate-300 pb-2 mb-4 font-sans text-[9px] text-slate-500 uppercase tracking-wider">
+                  <span>Reglamento Nacional de Edificaciones (RNE)</span>
+                  <span>Norma Técnica A.010 • Pág. 42</span>
+                </div>
+
+                <h3 class="font-sans font-bold text-[14px] text-slate-900 mb-2">CAPÍTULO V: ACCESOS Y PASAJES DE CIRCULACIÓN VERTICAL</h3>
+                <h4 class="font-sans font-bold text-[12px] text-slate-800 mb-2">Artículo 26.- Escaleras Principales y de Evacuación</h4>
+
+                <p class="mb-3 text-justify text-slate-700">
+                  Las escaleras de uso público o común en edificaciones residenciales colectivas, comerciales o de equipamiento deberán diseñarse de modo que garanticen una evacuación fluida, segura y continua hasta la vía pública o zona de seguridad exterior.
+                </p>
+
+                <!-- Párrafo Resaltado con la Cita Exacta -->
+                <div class="p-3 bg-yellow-100/90 rounded border-l-4 border-l-secondary text-slate-950 font-sans my-3 shadow-xs">
+                  <span class="text-[9px] font-bold text-secondary uppercase font-mono block mb-1">CITA VERIFICADA POR NORMAARQ (Inciso b.2):</span>
+                  <p class="font-medium text-[11.5px] leading-normal">
+                    «Las escaleras comunes en edificaciones residenciales colectivas tendrán un <strong>ancho mínimo libre de 1.20 m</strong> entre muros terminados. El gálibo vertical medido desde el punto medio de la huella hasta el cielo raso o fondo de losa superior será <strong>mínimo de 2.10 m</strong> en todo el recorrido.»
+                  </p>
+                </div>
+
+                <p class="mb-3 text-justify text-slate-700">
+                  <strong>Inciso d.1:</strong> La dimensión del paso (huella) no será menor a 0.28 m y el contrapaso se mantendrá entre 0.16 m y 0.18 m. Los descansos intermedios deberán tener una longitud no menor al ancho reglamentario del tramo de la escalera (≥ 1.20 m).
+                </p>
+
+                <!-- Tabla de Parámetros Oficiales -->
+                <div class="mt-4 border border-slate-300 rounded overflow-hidden font-sans text-[10px]">
+                  <div class="bg-slate-100 p-1.5 font-bold text-slate-800 border-b border-slate-300 flex justify-between">
+                    <span>Tabla 5.1 - Anchos mínimos de escaleras</span>
+                    <span>MVCS</span>
+                  </div>
+                  <div class="p-2 space-y-1">
+                    <div class="flex justify-between border-b border-slate-200 pb-0.5">
+                      <span>Vivienda Unifamiliar:</span>
+                      <span class="font-mono font-bold">0.90 m</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-200 pb-0.5 bg-blue-50/50">
+                      <span>Vivienda Multifamiliar (hasta 4 pisos):</span>
+                      <span class="font-mono font-bold text-secondary">1.20 m</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span>Uso Comercial / Aforo > 100 personas:</span>
+                      <span class="font-mono font-bold">1.50 m</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pie de Página Oficial -->
+              <div class="pt-3 border-t border-slate-300 flex justify-between text-[9px] font-sans text-slate-400">
+                <span>Ministerio de Vivienda, Construcción y Saneamiento</span>
+                <span>Fidelidad Documental Garantizada</span>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VISTA 3: BIBLIOTECA DE FICHAS NORMATIVAS                 -->
+      <!-- ======================================================== -->
+      <div id="view-fichas-normativas" class="hidden px-gutter py-space-lg flex flex-col gap-space-lg max-w-[1520px] mx-auto w-full">
+        <!-- Encabezado de Fichas -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+          <div class="flex flex-col max-w-2xl">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-xs tracking-wider uppercase font-semibold">
+                Módulo 03 // Memoria y Láminas
+              </span>
+              <span class="text-outline-variant">•</span>
+              <span id="fichas-count-badge" class="font-label-sm text-xs text-secondary font-bold">2 Fichas Registradas</span>
+            </div>
+            <h1 class="font-headline-lg text-2xl md:text-3xl text-on-surface tracking-tight font-bold">
+              Biblioteca de Fichas Técnicas Normativas
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">
+              Registro trazable de todas las consultas realizadas para tu proyecto. Exporta rótulos técnicos para láminas de AutoCAD/Revit o citas para memorias descriptivas de entrega.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-secondary text-on-secondary text-xs font-semibold hover:bg-blue-700 transition-colors shadow-sm" onclick="window.print()">
+              <span class="material-symbols-outlined text-[16px]">print</span>
+              <span>Imprimir Fichas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros y Buscador de Fichas -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-container-low p-3 rounded-xl border border-outline-variant">
+          <!-- Chips de Filtro -->
+          <div class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+            <button class="ficha-filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-on-primary transition-all" data-filter="all">
+              Todas
+            </button>
+            <button class="ficha-filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-surface-container text-on-surface transition-all" data-filter="#Escaleras">
+              #Escaleras
+            </button>
+            <button class="ficha-filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-surface-container text-on-surface transition-all" data-filter="#Estacionamientos">
+              #Estacionamientos
+            </button>
+            <button class="ficha-filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-surface-container text-on-surface transition-all" data-filter="#Urbanismo">
+              #Urbanismo
+            </button>
+            <button class="ficha-filter-chip px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-surface-container text-on-surface transition-all" data-filter="#Acondicionamiento">
+              #Acondicionamiento
+            </button>
+          </div>
+
+          <!-- Input de Búsqueda -->
+          <div class="relative w-full sm:w-72">
+            <span class="material-symbols-outlined absolute left-2.5 top-2 text-[18px] text-outline">search</span>
+            <input id="search-fichas-input" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-8 pr-3 py-1.5 text-xs text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary" placeholder="Buscar por palabra clave o artículo...">
+          </div>
+        </div>
+
+        <!-- Cuadrícula de Fichas Guardadas -->
+        <div id="fichas-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+          <!-- Renderizado dinámicamente desde JavaScript -->
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VISTA 4: AVISOS, LÍMITES Y RÉGIMEN ÉTICO                  -->
+      <!-- ======================================================== -->
+      <div id="view-avisos-y-limites" class="hidden px-gutter py-space-lg flex flex-col gap-space-xl max-w-[1520px] mx-auto w-full">
+        <!-- Banner de Encabezado -->
+        <div class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-lg shadow-sm border border-outline-variant">
+          <div class="flex flex-col gap-1 max-w-3xl">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-surface-container text-secondary font-label-sm text-xs uppercase tracking-wider font-bold">
+                <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                Garantía de Fidelidad Documental
+              </span>
+              <span class="text-outline text-xs">|</span>
+              <span class="text-on-surface-variant font-label-sm text-xs font-medium">Protocolo Anti-Alucinación v2.4</span>
+            </div>
+            <h1 class="font-headline-lg text-2xl md:text-3xl text-on-surface tracking-tight font-bold mt-1">
+              Transparencia Epistemológica, Límites y Régimen Ético
+            </h1>
+            <p class="text-sm text-on-surface-variant leading-relaxed mt-1">
+              NormaArq circunscribe todas sus respuestas a la evidencia sintáctica y semántica del archivo PDF cargado. Cuando un requerimiento normativo o técnico no figura en el cuerpo del texto, el sistema declara abstención analítica para evitar distorsiones en entregas proyectuales de taller.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4 Pilares Bento Grid (Sección 4 del PRD) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
+          
+          <!-- Pilar 1 -->
+          <div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant flex flex-col justify-between gap-3">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
+                  <span class="material-symbols-outlined text-[22px]">engineering</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-label-sm font-bold bg-surface-container-high text-secondary uppercase">LÍMITE LEGAL</span>
+              </div>
+              <div>
+                <span class="font-label-sm text-[10px] text-outline font-mono block font-semibold">01 / REVISIÓN HUMANA</span>
+                <h3 class="font-headline-sm text-base text-on-surface font-bold mt-0.5">No sustituye al arquitecto</h3>
+              </div>
+              <div class="space-y-1.5 text-xs text-on-surface-variant">
+                <p><strong>Permitido:</strong> Asistencia en consultas y redacción de memoria.</p>
+                <p class="text-red-700"><strong>No permitido:</strong> Firma profesional de planos o proyectos.</p>
+              </div>
+            </div>
+            <div class="px-2 py-1 bg-surface-container-low rounded text-[10px] font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Decisión final: Proyectista
+            </div>
+          </div>
+
+          <!-- Pilar 2 -->
+          <div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant flex flex-col justify-between gap-3">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
+                  <span class="material-symbols-outlined text-[22px]">history_edu</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-label-sm font-bold bg-surface-container-high text-secondary uppercase">ALCANCE PDF</span>
+              </div>
+              <div>
+                <span class="font-label-sm text-[10px] text-outline font-mono block font-semibold">02 / VIGENCIA DE LEY</span>
+                <h3 class="font-headline-sm text-base text-on-surface font-bold mt-0.5">No consulta normas externas</h3>
+              </div>
+              <div class="space-y-1.5 text-xs text-on-surface-variant">
+                <p><strong>Permitido:</strong> Análisis estricto del archivo PDF subido.</p>
+                <p class="text-red-700"><strong>No permitido:</strong> Asumir vigencia si el PDF es antiguo.</p>
+              </div>
+            </div>
+            <div class="px-2 py-1 bg-surface-container-low rounded text-[10px] font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Fidelidad: Edición cargada
+            </div>
+          </div>
+
+          <!-- Pilar 3 -->
+          <div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant flex flex-col justify-between gap-3">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-on-tertiary-container">
+                  <span class="material-symbols-outlined text-[22px]">verified</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-label-sm font-bold bg-surface-container-high text-on-tertiary-container uppercase">FIDELIDAD</span>
+              </div>
+              <div>
+                <span class="font-label-sm text-[10px] text-outline font-mono block font-semibold">03 / ANTI-ALUCINACIÓN</span>
+                <h3 class="font-headline-sm text-base text-on-surface font-bold mt-0.5">No inventa coeficientes</h3>
+              </div>
+              <div class="space-y-1.5 text-xs text-on-surface-variant">
+                <p><strong>Permitido:</strong> Declarar ausencia explícita del dato.</p>
+                <p class="text-red-700"><strong>No permitido:</strong> Fabricar cotas verosímiles no escritas.</p>
+              </div>
+            </div>
+            <div class="px-2 py-1 bg-surface-container-low rounded text-[10px] font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span> Abstención: Ante la duda
+            </div>
+          </div>
+
+          <!-- Pilar 4 -->
+          <div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant flex flex-col justify-between gap-3">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-secondary">
+                  <span class="material-symbols-outlined text-[22px]">domain_disabled</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-label-sm font-bold bg-surface-container-high text-secondary uppercase">NO VINCULANTE</span>
+              </div>
+              <div>
+                <span class="font-label-sm text-[10px] text-outline font-mono block font-semibold">04 / ALCANCE MUNICIPAL</span>
+                <h3 class="font-headline-sm text-base text-on-surface font-bold mt-0.5">No aprueba licencias</h3>
+              </div>
+              <div class="space-y-1.5 text-xs text-on-surface-variant">
+                <p><strong>Permitido:</strong> Sustentar argumentos de diseño en taller.</p>
+                <p class="text-red-700"><strong>No permitido:</strong> Certificaciones ante curadurías o alcaldías.</p>
+              </div>
+            </div>
+            <div class="px-2 py-1 bg-surface-container-low rounded text-[10px] font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Fines: Pedagógicos y de estudio
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- ✨ MODAL: FICHA TÉCNICA Y NORMATIVAS RELEVANTES          -->
+  <!-- ======================================================== -->
+  <div id="ficha-tecnica-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div id="ficha-tecnica-printable" class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-outline-variant overflow-hidden flex flex-col my-8">
+      
+      <!-- Cabecera del Documento Técnico -->
+      <div class="bg-slate-900 text-white p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold font-mono text-lg">
+            NA
+          </div>
+          <div>
+            <span class="font-mono text-[10px] uppercase tracking-widest text-blue-400 font-bold block">CONTROL NORMATIVO ACADÉMICO</span>
+            <h2 class="text-xl font-bold tracking-tight">Ficha Técnica de Consulta Normativa</h2>
+            <span id="ft-project-name" class="text-xs text-slate-300">Taller de Proyectos V - Vivienda Colectiva</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="close-ficha-modal-btn" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cuerpo de la Ficha Técnica -->
+      <div class="p-6 space-y-6 text-on-surface bg-surface-container-lowest overflow-y-auto max-h-[75vh]">
+        
+        <!-- Metadatos de Trazabilidad -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-surface-container-low rounded-xl border border-outline-variant text-xs">
+          <div>
+            <span class="text-[10px] font-mono text-outline uppercase block">Trazabilidad Hash</span>
+            <span id="ft-hash" class="font-mono font-bold text-secondary">#RNE-2023-A010-ESC</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-mono text-outline uppercase block">Destino Proyectual</span>
+            <span id="ft-lamina" class="font-bold text-on-surface">Lámina A-03</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-mono text-outline uppercase block">Documento Base</span>
+            <span id="ft-doc-name" class="font-medium text-on-surface truncate block">RNE A.010</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-mono text-outline uppercase block">Cita Oficial</span>
+            <span id="ft-article" class="font-mono font-bold text-secondary truncate block">Art. 26 (Pág. 42)</span>
+          </div>
+        </div>
+
+        <!-- Requisito Principal Consultado -->
+        <div class="space-y-2">
+          <h3 id="ft-title" class="text-lg font-bold text-on-surface">Ancho Mínimo y Gálibo en Escaleras Colectivas</h3>
+          <p id="ft-summary" class="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+            Las escaleras comunes en edificaciones multifamiliares de más de 3 niveles requieren un ancho mínimo de 1.20 m libres entre muros terminados.
+          </p>
+          <div class="flex gap-4 pt-1 font-mono text-xs font-bold text-secondary">
+            <span id="ft-metric-p1" class="bg-secondary/10 px-2.5 py-1 rounded">Ancho: 1.20 m</span>
+            <span id="ft-metric-p2" class="bg-secondary/10 px-2.5 py-1 rounded">Gálibo: 2.10 m</span>
+          </div>
+        </div>
+
+        <!-- Cita Textual de Respaldo -->
+        <div class="p-4 bg-slate-50 rounded-xl border-l-4 border-l-secondary border border-slate-200">
+          <span class="text-[10px] font-mono font-bold text-secondary uppercase block mb-1">CITA TEXTUAL DE RESPALDO (VERIFICADA):</span>
+          <p id="ft-exact-quote" class="text-xs italic text-slate-800 leading-relaxed font-serif">
+            «Las escaleras comunes en edificaciones residenciales colectivas tendrán un ancho mínimo libre de 1.20 m entre muros terminados...»
+          </p>
+        </div>
+
+        <!-- ✨ SECCIÓN ESPECIAL: NORMATIVAS RELEVANTES VINCULADAS -->
+        <div class="space-y-3 pt-2 border-t border-outline-variant">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[20px] text-secondary">link</span>
+              <h4 class="text-sm font-bold text-on-surface uppercase tracking-wide">Normativas Relevantes Vinculadas a la Consulta</h4>
+            </div>
+            <span class="text-[10px] font-mono text-outline">Análisis Complementario</span>
+          </div>
+          <p class="text-xs text-on-surface-variant">
+            Al aplicar este requisito en tus planos, debes contemplar simultáneamente las siguientes normas obligatorias conexas:
+          </p>
+
+          <!-- Lista Dinámica de Normativas Relacionadas -->
+          <div id="ft-related-norms-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Insertado por JavaScript -->
+          </div>
+        </div>
+
+        <!-- Vista previa de Rótulo CAD para pegar en AutoCAD / Revit -->
+        <div class="space-y-2 pt-2 border-t border-outline-variant">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono font-bold text-outline uppercase">Rótulo Técnico para Lámina CAD</span>
+            <button id="copy-cad-rotulo-btn" class="text-xs font-semibold text-secondary hover:underline flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">content_copy</span> Copiar Texto CAD
+            </button>
+          </div>
+          <pre id="ft-cad-rotulo-preview" class="p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-lg overflow-x-auto leading-relaxed border border-slate-800"></pre>
+        </div>
+
+      </div>
+
+      <!-- Pie del Modal con Acciones -->
+      <div class="p-4 bg-surface-container-low border-t border-outline-variant flex flex-wrap items-center justify-between gap-3">
+        <span class="text-xs text-outline font-label-sm">Universidad de Boyacá • Taller de Arquitectura</span>
+        <div class="flex items-center gap-2">
+          <button id="print-ficha-btn" class="px-4 py-2 bg-secondary text-on-secondary rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-xs">
+            <span class="material-symbols-outlined text-[16px]">print</span>
+            <span>Imprimir / Guardar PDF</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: CONFIGURACIÓN MOTOR DE IA (GEMINI API)            -->
+  <!-- ======================================================== -->
+  <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-outline-variant p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+        <div class="flex items-center gap-2 text-secondary">
+          <span class="material-symbols-outlined text-[24px]">smart_toy</span>
+          <h3 class="text-lg font-bold text-on-surface">Configuración de IA</h3>
+        </div>
+        <button id="close-settings-btn" class="p-1 rounded-lg hover:bg-surface-container text-outline">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-on-surface-variant leading-relaxed">
+        <p>
+          NormaArq incluye un <strong>motor arquitectónico local inmediato</strong> que no requiere ninguna clave para funcionar con normas preindexadas.
+        </p>
+        <p>
+          Si deseas conectar tu propia clave gratuita de <strong>Google Gemini API</strong> para analizar cualquier PDF extenso con IA generativa, ingrésala a continuación:
+        </p>
+
+        <div class="space-y-1 pt-1">
+          <label class="font-mono text-[11px] font-bold text-on-surface block">Gemini API Key (Opcional):</label>
+          <input id="gemini-key-input" type="password" class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:border-secondary" placeholder="AIzaSy...">
+          <span class="text-[10px] text-outline block">Tu clave se guarda exclusivamente en el navegador local (`localStorage`).</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-3 border-t border-outline-variant">
+        <button id="save-api-key-btn" class="px-4 py-2 bg-secondary text-on-secondary rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors shadow-xs">
+          Guardar Configuración
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script principal de la aplicación -->
+  <script src="app.js"></script>
+</body>
+</html>
